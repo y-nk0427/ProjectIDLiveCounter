@@ -21,17 +21,17 @@ async def main():
                 DIR_PATH = path.dirname(__file__)
 
                 # タイムサーバーから時刻を取得
-                ntp_client = ntplib.NTPClient()
-                ntp_response = ntp_client.request('pool.ntp.org', version=3)
-                ntp_time = datetime.utcfromtimestamp(ntp_response.tx_time)
-                device_ntp_diff = datetime.utcnow() - ntp_time
+                # ntp_client = ntplib.NTPClient()
+                # ntp_response = ntp_client.request('pool.ntp.org', version=3)
+                # ntp_time = datetime.utcfromtimestamp(ntp_response.tx_time)
+                # device_ntp_diff = datetime.utcnow() - ntp_time
 
-                print(f"サーバー時刻のずれ: {timedelta.total_seconds(device_ntp_diff)}s")
+                # print(f"サーバー時刻のずれ: {timedelta.total_seconds(device_ntp_diff)}s")
 
                 # 時刻を取得する関数
                 def utcnow():
-                    nonlocal device_ntp_diff
-                    return datetime.utcnow() + device_ntp_diff
+                    # nonlocal device_ntp_diff
+                    return datetime.utcnow()  # + device_ntp_diff
 
                 # セッションIDをファイルから読み取り
                 with open(path.join(DIR_PATH, "session_id.txt"), "r") as file:
@@ -39,25 +39,25 @@ async def main():
 
                 # セッション情報
                 s3_session = s3.Session(s3_session_id, username="y_nk")
-                print("Trying to connect")
                 s3_connection_tw = s3_session.connect_tw_cloud(1064835367, purpose="Project ID Live Counter Bot v2.0 by @y_nk - Using Python & scratchattach library v1.7.3", contact="yoheinz2010@gmail.com")
 
                 async def set_var(name, value):
-                    err = 0
+                    pass
+                    # err = 0
 
-                    for err_cnt in range(15):
-                        try:
-                            s3_connection_tw.set_var(name, value)
-                            # s3_connection.set_var(name, value)
-                            await asyncio.sleep(0.1)
-                            return
+                    # for err_cnt in range(15):
+                    #     try:
+                    #         s3_connection_tw.set_var(name, value)
+                    #         # s3_connection.set_var(name, value)
+                    #         await asyncio.sleep(0.1)
+                    #         return
                         
-                        except Exception as e:
-                            err = e
-                            print(f"Error while setting value to cloud variable... name: {name}, count: {err_cnt}, err: {e!r}")
-                            await asyncio.sleep(1)
+                    #     except Exception as e:
+                    #         err = e
+                    #         print(f"Error while setting value to cloud variable... name: {name}, count: {err_cnt}, err: {e!r}")
+                    #         await asyncio.sleep(1)
 
-                    raise err
+                    # raise err
 
                 print("接続完了: 推定ID調査開始")
 
@@ -113,7 +113,7 @@ async def main():
                 # 定義地獄
                 NUM_OF_MILESTONES_TO_MONITOR = 4  # 監視するキリ番プロジェクトの数
                 before_max_id = max_id  # 前回更新時の最大ID
-                recent_speed_list = []  # 直近n県の更新で算出されたプロジェクト作成速度
+                recent_update_list = []  # 直近n県の更新で算出されたプロジェクト作成速度
                 long_term_speed_data = pandas.read_csv(path.join(DIR_PATH, "speed_data.csv"), header=None).values.tolist()  # 7日周期1時間ごとに記録されたプロジェクト作成速度の平均データ
                 before_before_milestones = data["before_milestones"]  # プログラム実行前に記録されていた過去のキリ番の情報
                 before_update_num = 0  # 前回の更新でのプロジェクトの作成時刻
@@ -122,7 +122,7 @@ async def main():
                 data_string = ""  # クラウド変数に渡す用の数字だけの動的なデータ文字列
                 milestone_string = ""  # 同様に、キリ番情報の文字列
                 speed_data_string = ""  # 同様に、その曜日のプロジェクト作成速度情報の文字列
-                num_of_updates = 0  # 更新回数
+                num_of_checks = 0  # 更新回数
                 last_update = 0  # 現時点での最大IDの取得時刻
                 last_update_num = 0  # ↑の数値版
                 last_update_minus_30min = 0  # last_update の30分前 (speed_data格納時に使用)
@@ -131,9 +131,9 @@ async def main():
                 last_check_num = 0  # ↑の数値版
                 num_of_projects_to_monitor = 1000  # この更新で調べるプロジェクトの数
 
-                create_speed = 0  # プロジェクトの作成速度 (1回で計測)
-                create_speed_avg50 = 0  # プロジェクトの作成速度平均 (直近50件)
-                create_speed_avg10 = 0  # プロジェクトの作成速度平均 (直近10件)
+                create_speed = 0  # 1更新での作成速度 (コンソール表示用のみ)
+                create_speed_last50 = 0  # 50更新前での情報から求められた作成速度
+                create_speed_last10 = 0  # 10更新前での情報から求められた作成速度
                 id_diff = 0  # 前回の更新からのIDの増加
                 time_diff = 0  # 前回の更新から経った時間
                 
@@ -249,9 +249,9 @@ async def main():
                         last_check = utcnow()
                         last_check_num = convert_datestr_to_num(last_check)
 
-                        if num_of_updates > 2:
+                        if num_of_checks > 2:
                             # 今回調べるプロジェクトの数を作成速度と1ループの時間から決定
-                            num_of_projects_to_monitor = max(int(max(create_speed_avg10, create_speed_avg50) * (last_check_num - before_update_num) * 2), 15)
+                            num_of_projects_to_monitor = max(int(max(create_speed_last10, create_speed_last50) * (last_check_num - before_update_num) * 2), 15)
 
                         # 通常取得枠
                         tasks = [
@@ -306,7 +306,7 @@ async def main():
                     # 情報取得終了
 
                     if max_id != before_max_id:  # 最大IDの更新があったら
-                        if num_of_updates >= 2:  # 無限ループ前の推定では最新のものに追いついてない可能性があるので、詳細な計算は2回の更新後に始める
+                        if num_of_checks >= 2:  # 無限ループ前の推定では最新のものに追いついてない可能性があるので、詳細な計算は2回の更新後に始める
                             id_diff = max_id - before_max_id
                             last_update = last_check
                             last_update_num = last_check_num
@@ -317,26 +317,32 @@ async def main():
                             # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratchサーバーの不調からの急な回復が考えられるので、
                             # 作成速度の不本意な急増を抑えるべく一旦見なかったことにする
                             if id_diff >= 0.8 * num_of_projects_to_monitor:
-                                print(f"[update #{num_of_updates:06}: {last_check}]     #{max_id} | speed:{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                        *{num_of_projects_to_monitor:3}")
+                                print(f"[update #{num_of_checks:06}: {last_check}]     #{max_id} | speed:{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                        *{num_of_projects_to_monitor:3}")
                             
                             else:
                                 before_update_num = last_update_num
 
                                 # 直近50件の更新での作成速度リストに追加
-                                recent_speed_list.insert(0, create_speed)
-                                if len(recent_speed_list) > 50:
-                                    recent_speed_list.pop()
+                                recent_update_list.append({"time": last_update_num, "id": max_id})
+                                if len(recent_update_list) > 50:
+                                    recent_update_list.pop(0)
 
-                                # 直近50件の更新での作成速度の平均を計算
-                                create_speed_avg50 = sum(recent_speed_list) / len(recent_speed_list)
+                                if len(recent_update_list) > 1:
+                                    # 50件前の更新時の情報から作成速度を計算
+                                    create_speed_last50 = (max_id - recent_update_list[0]["id"]) / (last_update_num - recent_update_list[0]["time"])
 
-                                # 直近10件の更新での作成速度の平均を計算
-                                create_speed_avg10 = sum(recent_speed_list[:10]) / len(recent_speed_list[:10])
+                                    # 10件前の更新時の情報から作成速度を計算
+                                    create_speed_last10 = (max_id - recent_update_list[-min(10, len(recent_update_list))]["id"]) / \
+                                        (last_update_num - recent_update_list[-min(10, len(recent_update_list))]["time"])
+                                    
+                                else:
+                                    create_speed_last50 = create_speed
+                                    create_speed_last10 = create_speed
 
                                 # data_string の設定
-                                data_string = f"{max_id:010}{int(create_speed_avg10 * 1e5):08}{int(create_speed_avg50 * 1e5):08}{int(last_update_num * 1000):014}"
+                                data_string = f"{max_id:010}{int(create_speed_last10 * 1e5):08}{int(create_speed_last50 * 1e5):08}{int(last_update_num * 1000):014}"
 
-                                print(f"[update #{num_of_updates:06}: {last_check}] [!] #{max_id} | speed:{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s (avg10: {create_speed_avg10:6.3f} p/s, avg50: {create_speed_avg50:6.3f} p/s) *{num_of_projects_to_monitor:3}")
+                                print(f"[update #{num_of_checks:06}: {last_check}] [!] #{max_id} | speed:{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s (avg10: {create_speed_last10:6.3f} p/s, avg50: {create_speed_last50:6.3f} p/s) *{num_of_projects_to_monitor:3}")
 
                                 last_update_minus_30min = last_update - timedelta(minutes=30)
 
@@ -347,7 +353,7 @@ async def main():
 
                                 # temp[0]: avg / temp[1]: cnt
                                 if temp[0] != None:
-                                    temp[0] = ((temp[0] * temp[1]) + create_speed) / (temp[1] + 1)
+                                    temp[0] = ((temp[0] * temp[1]) + create_speed_last10) / (temp[1] + 1)
                                     temp[1] += 1
 
                                 else:
@@ -368,9 +374,9 @@ async def main():
                         before_max_id = max_id
                     
                     else:
-                        print(f"[update #{num_of_updates:06}: {last_check}]     #{max_id} | speed:  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                        *{num_of_projects_to_monitor:3}")
+                        print(f"[update #{num_of_checks:06}: {last_check}]     #{max_id} | speed:  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                        *{num_of_projects_to_monitor:3}")
                         
-                    num_of_updates += 1
+                    num_of_checks += 1
 
                     # キリ番に到達した場合
                     if max_id >= next_milestone:
@@ -397,7 +403,7 @@ async def main():
 
                         print(f"\n<<<<<  [{last_check}] Milestone #{before_milestones[0]["id"]} has just been created!! (Next: {next_milestone})  >>>>>\n")
 
-                    if num_of_updates >= 30:
+                    if num_of_checks >= 30:
                         await set_var("data", data_string)
 
                     data = {"max_id": max_id, "before_milestones": before_milestones}
