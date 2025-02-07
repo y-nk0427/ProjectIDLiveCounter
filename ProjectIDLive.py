@@ -42,22 +42,22 @@ async def main():
                 s3_connection_tw = s3_session.connect_tw_cloud(1064835367, purpose="Project ID Live Counter Bot v2.0 by @y_nk - Using Python & scratchattach library v1.7.3", contact="yoheinz2010@gmail.com")
 
                 async def set_var(name, value):
-                    pass
-                    # err = 0
+                    # pass
+                    err = 0
 
-                    # for err_cnt in range(15):
-                    #     try:
-                    #         s3_connection_tw.set_var(name, value)
-                    #         # s3_connection.set_var(name, value)
-                    #         await asyncio.sleep(0.1)
-                    #         return
+                    for err_cnt in range(15):
+                        try:
+                            s3_connection_tw.set_var(name, value)
+                            # s3_connection.set_var(name, value)
+                            await asyncio.sleep(0.1)
+                            return
                         
-                    #     except Exception as e:
-                    #         err = e
-                    #         print(f"Error while setting value to cloud variable... name: {name}, count: {err_cnt}, err: {e!r}")
-                    #         await asyncio.sleep(1)
+                        except Exception as e:
+                            err = e
+                            print(f"Error while setting value to cloud variable... name: {name}, count: {err_cnt}, err: {e!r}")
+                            await asyncio.sleep(1)
 
-                    # raise err
+                    raise err
 
                 print("接続完了: 推定ID調査開始")
 
