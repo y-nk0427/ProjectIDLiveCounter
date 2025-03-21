@@ -42,7 +42,7 @@ async def main():
                 s3_connection_tw = s3_session.connect_tw_cloud(1064835367, purpose="Project ID Live Counter Bot v2.0 by @y_nk - Using Python & scratchattach library v1.7.3", contact="yoheinz2010@gmail.com")
 
                 async def set_var(name, value):
-                    # pass
+                    #return
                     err = 0
 
                     for err_cnt in range(15):
@@ -113,7 +113,8 @@ async def main():
                 # 定義地獄
                 NUM_OF_MILESTONES_TO_MONITOR = 4  # 監視するキリ番プロジェクトの数
                 before_max_id = max_id  # 前回更新時の最大ID
-                recent_update_list = []  # 直近n県の更新で算出されたプロジェクト作成速度
+                recent_speed_list = []  # 直近50更新で算出されたプロジェクト作成速度
+                recent_update_list_for_stats = []  # 直近50更新での {現在の時刻, 現在の最大ID} を保存したリスト (統計データ用速度算出用)
                 long_term_speed_data = pandas.read_csv(path.join(DIR_PATH, "speed_data.csv"), header=None).values.tolist()  # 7日周期1時間ごとに記録されたプロジェクト作成速度の平均データ
                 before_before_milestones = data["before_milestones"]  # プログラム実行前に記録されていた過去のキリ番の情報
                 before_update_num = 0  # 前回の更新でのプロジェクトの作成時刻
@@ -130,10 +131,10 @@ async def main():
                 last_check = 0  # 今ループでの情報取得開始時刻
                 last_check_num = 0  # ↑の数値版
                 num_of_projects_to_monitor = 1000  # この更新で調べるプロジェクトの数
-
                 create_speed = 0  # 1更新での作成速度 (コンソール表示用のみ)
-                create_speed_last50 = 0  # 50更新前での情報から求められた作成速度
-                create_speed_last10 = 0  # 10更新前での情報から求められた作成速度
+                create_speed_last50 = 0  # 直近50更新の平均作成速度
+                create_speed_last10 = 0  # 直近50更新の平均作成速度
+                create_speed_for_stats = 0  # 50更新前での情報から求められた作成速度 (統計データ用)
                 id_diff = 0  # 前回の更新からのIDの増加
                 time_diff = 0  # 前回の更新から経った時間
                 
@@ -241,6 +242,9 @@ async def main():
                                     if max_id < id:
                                         max_id = id
                                         last_update = utcnow()
+
+                                elif response.status != 688:
+                                    print(f"A task responsed with a status {response.status}.")
                         
                         except Exception as e:
                             return e
@@ -290,7 +294,7 @@ async def main():
                             before_milestones[i]["creator"] = res_json["author"]["username"]
                             before_milestones[i]["created_time"] = int(convert_datestr_to_num(res_json["history"]["created"]))
 
-                            print(f"\n<<<<<  [{last_check}] Milestone #{before_milestones[0]["id"]} has just been shared!! (Creator: @{before_milestones[i]["creator"]})  >>>>>\n")
+                            print(f"\n[{last_check}] <<< Milestone #{before_milestones[0]["id"]} has just been shared!! (Creator: @{before_milestones[i]["creator"]}) >>>\n")
 
                             # 新たに共有されたものが見つかった場合、milestone_string を組み立てなおす
                             milestone_string = ""
@@ -314,27 +318,31 @@ async def main():
                             time_diff = (last_update_num - before_update_num)
                             create_speed = id_diff / time_diff
 
-                            # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratchサーバーの不調からの急な回復が考えられるので、
+                            # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratch側の不調からの急な回復が考えられるので、
                             # 作成速度の不本意な急増を抑えるべく一旦見なかったことにする
                             if id_diff >= 0.8 * num_of_projects_to_monitor:
-                                print(f"[update #{num_of_checks:06}: {last_check}]     #{max_id} | speed:{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                        *{num_of_projects_to_monitor:3}")
+                                print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                                   *{num_of_projects_to_monitor:3}")
                             
                             else:
                                 before_update_num = last_update_num
 
-                                # 直近50件の更新での作成速度リストに追加
-                                recent_update_list.append({"time": last_update_num, "id": max_id})
-                                if len(recent_update_list) > 50:
-                                    recent_update_list.pop(0)
+                                recent_speed_list.append(create_speed)
+                                if len(recent_speed_list) > 50:
+                                    recent_speed_list.pop(0)
 
-                                if len(recent_update_list) > 1:
+                                # 情報を直近50更新での情報リストに追加 (統計データ用)
+                                recent_update_list_for_stats.append({"time": last_update_num, "id": max_id})
+                                if len(recent_update_list_for_stats) > 50:
+                                    recent_update_list_for_stats.pop(0)
+
+                                if len(recent_update_list_for_stats) > 1:
                                     # 50件前の更新時の情報から作成速度を計算
-                                    create_speed_last50 = (max_id - recent_update_list[0]["id"]) / (last_update_num - recent_update_list[0]["time"])
+                                    create_speed_for_stats = (max_id - recent_update_list_for_stats[0]["id"]) / (last_update_num - recent_update_list_for_stats[0]["time"])
 
-                                    # 10件前の更新時の情報から作成速度を計算
-                                    create_speed_last10 = (max_id - recent_update_list[-min(10, len(recent_update_list))]["id"]) / \
-                                        (last_update_num - recent_update_list[-min(10, len(recent_update_list))]["time"])
-                                    
+                                    avg = lambda l : sum(l) / len(l)
+                                    create_speed_last50 = avg(recent_speed_list)
+                                    create_speed_last10 = avg(recent_speed_list[-10:] if len(recent_speed_list) >= 10 else recent_speed_list)
+
                                 else:
                                     create_speed_last50 = create_speed
                                     create_speed_last10 = create_speed
@@ -342,7 +350,7 @@ async def main():
                                 # data_string の設定
                                 data_string = f"{max_id:010}{int(create_speed_last10 * 1e5):08}{int(create_speed_last50 * 1e5):08}{int(last_update_num * 1000):014}"
 
-                                print(f"[update #{num_of_checks:06}: {last_check}] [!] #{max_id} | speed:{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s (avg10: {create_speed_last10:6.3f} p/s, avg50: {create_speed_last50:6.3f} p/s) *{num_of_projects_to_monitor:3}")
+                                print(f"[#{num_of_checks:06}: {last_check}] [!] #{max_id} |{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s (10: {create_speed_last10:6.3f} p/s, 50: {create_speed_last50:6.3f} p/s, s4s: {create_speed_for_stats:6.3f} p/s) *{num_of_projects_to_monitor:3}")
 
                                 last_update_minus_30min = last_update - timedelta(minutes=30)
 
@@ -351,9 +359,9 @@ async def main():
                                 # 長期的な作成速度リストの更新
                                 temp = long_term_speed_data[day_week_idx]
 
-                                # temp[0]: avg / temp[1]: cnt
+                                # temp[0] -> avg, temp[1] -> cnt
                                 if temp[0] != None:
-                                    temp[0] = ((temp[0] * temp[1]) + create_speed_last10) / (temp[1] + 1)
+                                    temp[0] = ((temp[0] * temp[1]) + create_speed_for_stats) / (temp[1] + 1)
                                     temp[1] += 1
 
                                 else:
@@ -374,7 +382,7 @@ async def main():
                         before_max_id = max_id
                     
                     else:
-                        print(f"[update #{num_of_checks:06}: {last_check}]     #{max_id} | speed:  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                        *{num_of_projects_to_monitor:3}")
+                        print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                                   *{num_of_projects_to_monitor:3}")
                         
                     num_of_checks += 1
 
@@ -401,7 +409,7 @@ async def main():
                         await set_var("milestone_data", milestone_string)
                         await set_var("milestone_data", milestone_string)
 
-                        print(f"\n<<<<<  [{last_check}] Milestone #{before_milestones[0]["id"]} has just been created!! (Next: {next_milestone})  >>>>>\n")
+                        print(f"\n[{last_check}] <<< Milestone #{before_milestones[0]["id"]} has just been created!! (Next: #{next_milestone}) >>>\n")
 
                     if num_of_checks >= 30:
                         await set_var("data", data_string)
@@ -429,7 +437,7 @@ async def main():
                         else:
                             break
                 
-            except Exception: 
+            except None: #Exception: 
                 print(f"[{datetime.utcnow()}] The following error occurred!\n {traceback.format_exc()}\n")
 
                 with open(path.join(DIR_PATH, "error_dump.log"), "a", encoding='UTF-8') as file:

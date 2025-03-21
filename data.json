@@ -1,6 +1,18 @@
 {
-    "max_id": 1130759515,
+    "max_id": 1150589455,
     "before_milestones": [
+        {
+            "id": 1150000000,
+            "shared": false,
+            "creator": null,
+            "created_time": 0
+        },
+        {
+            "id": 1140000000,
+            "shared": false,
+            "creator": null,
+            "created_time": 0
+        },
         {
             "id": 1130000000,
             "shared": true,
@@ -12,18 +24,6 @@
             "shared": false,
             "creator": null,
             "created_time": 0
-        },
-        {
-            "id": 1111111111,
-            "shared": true,
-            "creator": "4_42",
-            "created_time": 787624167
-        },
-        {
-            "id": 1110000000,
-            "shared": true,
-            "creator": "game1111111",
-            "created_time": 787351558
         }
     ]
 }
