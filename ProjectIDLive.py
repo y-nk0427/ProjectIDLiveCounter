@@ -321,7 +321,7 @@ async def main():
                             # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratch側の不調からの急な回復が考えられるので、
                             # 作成速度の不本意な急増を抑えるべく一旦見なかったことにする
                             if id_diff >= 0.8 * num_of_projects_to_monitor:
-                                print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                                   *{num_of_projects_to_monitor:3}")
+                                print(f"[#{num_of_checks:06}: {last_check}]  -  #{max_id} |{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                                   *{num_of_projects_to_monitor:3}")
                             
                             else:
                                 before_update_num = last_update_num
@@ -437,7 +437,7 @@ async def main():
                         else:
                             break
                 
-            except None: #Exception: 
+            except Exception: 
                 print(f"[{datetime.utcnow()}] The following error occurred!\n {traceback.format_exc()}\n")
 
                 with open(path.join(DIR_PATH, "error_dump.log"), "a", encoding='UTF-8') as file:
