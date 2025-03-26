@@ -4,12 +4,13 @@ import pandas
 import traceback
 import aiohttp
 from datetime import datetime, timedelta
-import ntplib
+# import ntplib
 import math
 import scratchattach as s3
 from os import path
 import json
 import warnings
+# import time
 
 async def main():
     async with aiohttp.ClientSession() as session:  # セッションをすべての場所で共有
@@ -110,7 +111,7 @@ async def main():
 
                 print("更新開始")
 
-                # 定義地獄
+                # 定義地獄 (何も整理されていない)
                 NUM_OF_MILESTONES_TO_MONITOR = 4  # 監視するキリ番プロジェクトの数
                 before_max_id = max_id  # 前回更新時の最大ID
                 recent_speed_list = []  # 直近50更新で算出されたプロジェクト作成速度
@@ -137,6 +138,8 @@ async def main():
                 create_speed_for_stats = 0  # 50更新前での情報から求められた作成速度 (統計データ用)
                 id_diff = 0  # 前回の更新からのIDの増加
                 time_diff = 0  # 前回の更新から経った時間
+                unfound_streak = 0  # 更新がなかった連続数
+                num_of_updates_gonna_be_ignored = 0  # ↑が大きくなっ手から更新された時に、この回数分は last_update や num_of_projects_to_monitor をリセットしない
                 
                 DATE_2000 = datetime(2000, 1, 1, 0, 0, 0)  # 2000年からの秒数に変換する用
 
@@ -248,6 +251,12 @@ async def main():
                         
                         except Exception as e:
                             return e
+                        
+                    # ここら辺に散らばってるコメントアウトされたコード(##)は、v2.1e のデバッグ用に使用されたものです。
+                    ## last_check = utcnow()
+                    ## last_check_num = convert_datestr_to_num(last_check)
+
+                    ## if not 40 < num_of_checks < 60:
 
                     for err_cnt in range(1500000000000000):  # エラーリトライ用
                         last_check = utcnow()
@@ -309,81 +318,105 @@ async def main():
                             await set_var("milestone_data", milestone_string)
                     # 情報取得終了
 
+                    ## else: time.sleep(0.1)
+
                     if max_id != before_max_id:  # 最大IDの更新があったら
                         if num_of_checks >= 2:  # 無限ループ前の推定では最新のものに追いついてない可能性があるので、詳細な計算は2回の更新後に始める
-                            id_diff = max_id - before_max_id
-                            last_update = last_check
-                            last_update_num = last_check_num
-
-                            time_diff = (last_update_num - before_update_num)
-                            create_speed = id_diff / time_diff
-
-                            # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratch側の不調からの急な回復が考えられるので、
-                            # 作成速度の不本意な急増を抑えるべく一旦見なかったことにする
-                            if id_diff >= 0.8 * num_of_projects_to_monitor:
-                                print(f"[#{num_of_checks:06}: {last_check}]  -  #{max_id} |{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                                   *{num_of_projects_to_monitor:3}")
+                            if unfound_streak >= 8:
+                                num_of_updates_gonna_be_ignored = 4
                             
+                            unfound_streak = 0
+
+                            if num_of_updates_gonna_be_ignored > 0:
+                                num_of_updates_gonna_be_ignored -= 1
+
+                                # print(f"[#{num_of_checks:06}: {last_check}]  ~  #{max_id} |{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s                                                   *{num_of_projects_to_monitor:3}")
+                                print(f"[#{num_of_checks:06}: {last_check}]  ~  #{max_id} |{max_id - before_max_id:3}p /{last_check_num - last_update_num:6.3f}s = {(max_id - before_max_id) / (last_check_num - last_update_num):7.3f} p/s                                                   *{num_of_projects_to_monitor:3}")
+
+
                             else:
-                                before_update_num = last_update_num
+                                id_diff = max_id - before_max_id
+                                last_update = last_check
+                                last_update_num = last_check_num
+                            
+                                time_diff = (last_check_num - before_update_num)
+                                create_speed = id_diff / time_diff
 
-                                recent_speed_list.append(create_speed)
-                                if len(recent_speed_list) > 50:
-                                    recent_speed_list.pop(0)
-
-                                # 情報を直近50更新での情報リストに追加 (統計データ用)
-                                recent_update_list_for_stats.append({"time": last_update_num, "id": max_id})
-                                if len(recent_update_list_for_stats) > 50:
-                                    recent_update_list_for_stats.pop(0)
-
-                                if len(recent_update_list_for_stats) > 1:
-                                    # 50件前の更新時の情報から作成速度を計算
-                                    create_speed_for_stats = (max_id - recent_update_list_for_stats[0]["id"]) / (last_update_num - recent_update_list_for_stats[0]["time"])
-
-                                    avg = lambda l : sum(l) / len(l)
-                                    create_speed_last50 = avg(recent_speed_list)
-                                    create_speed_last10 = avg(recent_speed_list[-10:] if len(recent_speed_list) >= 10 else recent_speed_list)
-
+                                # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratch側の不調からの急な回復が考えられるので、
+                                # 作成速度の不本意な急増を抑えるべく一旦見なかったことにする
+                                if False: # id_diff >= 0.8 * num_of_projects_to_monitor:
+                                    print(f"[#{num_of_checks:06}: {last_check}]  -  #{max_id} |{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                                   *{num_of_projects_to_monitor:3}")
+                                
                                 else:
-                                    create_speed_last50 = create_speed
-                                    create_speed_last10 = create_speed
+                                    before_update_num = last_update_num
 
-                                # data_string の設定
-                                data_string = f"{max_id:010}{int(create_speed_last10 * 1e5):08}{int(create_speed_last50 * 1e5):08}{int(last_update_num * 1000):014}"
+                                    recent_speed_list.append(create_speed)
+                                    if len(recent_speed_list) > 50:
+                                        recent_speed_list.pop(0)
 
-                                print(f"[#{num_of_checks:06}: {last_check}] [!] #{max_id} |{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s (10: {create_speed_last10:6.3f} p/s, 50: {create_speed_last50:6.3f} p/s, s4s: {create_speed_for_stats:6.3f} p/s) *{num_of_projects_to_monitor:3}")
+                                    # 情報を直近50更新での情報リストに追加 (統計データ用)
+                                    recent_update_list_for_stats.append({"time": last_update_num, "id": max_id})
+                                    if len(recent_update_list_for_stats) > 50:
+                                        recent_update_list_for_stats.pop(0)
 
-                                last_update_minus_30min = last_update - timedelta(minutes=30)
+                                    if len(recent_update_list_for_stats) > 1:
+                                        # 50件前の更新時の情報から作成速度を計算
+                                        create_speed_for_stats = (max_id - recent_update_list_for_stats[0]["id"]) / (last_update_num - recent_update_list_for_stats[0]["time"])
 
-                                day_week_idx = last_update_minus_30min.weekday() * 24 + last_update_minus_30min.hour
+                                        avg = lambda l : sum(l) / len(l)
+                                        create_speed_last50 = avg(recent_speed_list)
+                                        create_speed_last10 = avg(recent_speed_list[-10:] if len(recent_speed_list) >= 10 else recent_speed_list)
 
-                                # 長期的な作成速度リストの更新
-                                temp = long_term_speed_data[day_week_idx]
-
-                                # temp[0] -> avg, temp[1] -> cnt
-                                if temp[0] != None:
-                                    temp[0] = ((temp[0] * temp[1]) + create_speed_for_stats) / (temp[1] + 1)
-                                    temp[1] += 1
-
-                                else:
-                                    temp[0] = create_speed
-                                    temp[1] = 1
-
-                                long_term_speed_data[day_week_idx] = temp
-
-                                # 長期的な作成速度文字列の更新 (自動でScratchにはアップロードしない。ファイルに入れてy_nkが手動更新)
-                                speed_data_string = ""
-
-                                for i, inner in zip(range(168), long_term_speed_data):
-                                    if inner[0] != None:
-                                        speed_data_string += f"{int(inner[0] * 1e8):010}"
                                     else:
-                                        speed_data_string += f"{0:010}"
+                                        create_speed_last50 = create_speed
+                                        create_speed_last10 = create_speed
 
-                        before_max_id = max_id
+                                    # data_string の設定
+                                    data_string = f"{max_id:010}{int(create_speed_last10 * 1e5):08}{int(create_speed_last50 * 1e5):08}{int(last_update_num * 1000):014}"
+
+                                    print(f"[#{num_of_checks:06}: {last_check}] [!] #{max_id} |{id_diff:3}p /{time_diff:6.3f}s = {create_speed:7.3f} p/s (10: {create_speed_last10:6.3f} p/s, 50: {create_speed_last50:6.3f} p/s, s4s: {create_speed_for_stats:6.3f} p/s) *{num_of_projects_to_monitor:3}")
+
+                                    last_update_minus_30min = last_update - timedelta(minutes=30)
+
+                                    day_week_idx = last_update_minus_30min.weekday() * 24 + last_update_minus_30min.hour
+
+                                    # 長期的な作成速度リストの更新
+                                    temp = long_term_speed_data[day_week_idx]
+
+                                    # temp[0] -> avg, temp[1] -> cnt
+                                    if temp[0] != None:
+                                        temp[0] = ((temp[0] * temp[1]) + create_speed_for_stats) / (temp[1] + 1)
+                                        temp[1] += 1
+
+                                    else:
+                                        temp[0] = create_speed
+                                        temp[1] = 1
+
+                                    long_term_speed_data[day_week_idx] = temp
+
+                                    # 長期的な作成速度文字列の更新 (自動でScratchにはアップロードしない。ファイルに入れてy_nkが手動更新)
+                                    speed_data_string = ""
+
+                                    for i, inner in zip(range(168), long_term_speed_data):
+                                        if inner[0] != None:
+                                            speed_data_string += f"{int(inner[0] * 1e8):010}"
+                                        else:
+                                            speed_data_string += f"{0:010}"
+
+                                    before_max_id = max_id
+
+                        else:
+                            before_max_id = max_id
                     
                     else:
-                        print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                                   *{num_of_projects_to_monitor:3}")
+                        unfound_streak += 1
+
+                        if num_of_updates_gonna_be_ignored == 0:
+                            print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                                   *{num_of_projects_to_monitor:3}")
                         
+                        else:
+                            print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |{max_id - before_max_id:3}p /{last_check_num - last_update_num:6.3f}s = {(max_id - before_max_id) / (last_check_num - last_update_num):7.3f} p/s                                                   *{num_of_projects_to_monitor:3}")
+
                     num_of_checks += 1
 
                     # キリ番に到達した場合
