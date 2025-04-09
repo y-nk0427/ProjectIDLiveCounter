@@ -17,11 +17,11 @@ async def main():
         while True:  # エラーリトライ用無限ループ
             try:
                 warnings.simplefilter('ignore', DeprecationWarning)
-                
+
                 # ファイルが存在するフォルダーのパス
                 DIR_PATH = path.dirname(__file__)
 
-                # タイムサーバーから時刻を取得 (ここで通信エラーが起こったりするのでやめました)
+                # タイムサーバーから時刻を取得 (ここで通信エラーが起こったりするのでやめた)
                 # ntp_client = ntplib.NTPClient()
                 # ntp_response = ntp_client.request('pool.ntp.org', version=3)
                 # ntp_time = datetime.utcfromtimestamp(ntp_response.tx_time)
@@ -44,7 +44,7 @@ async def main():
                 s3_connection_tw = s3_session.connect_tw_cloud(1064835367, purpose="Project ID Live Counter Bot v2.0 by @y_nk - Using Python & scratchattach library v1.7.3", contact="yoheinz2010@gmail.com")
 
                 async def set_var(name, value):
-                    #return
+                    return
                     err = 0
 
                     for err_cnt in range(15):
@@ -53,7 +53,7 @@ async def main():
                             # s3_connection.set_var(name, value)
                             await asyncio.sleep(0.1)
                             return
-                        
+
                         except Exception as e:
                             err = e
                             print(f"Error while setting value to cloud variable... name: {name}, count: {err_cnt}, err: {e!r}")
@@ -112,7 +112,7 @@ async def main():
 
                 print("更新開始")
 
-                # 定義地獄 (何も整理されていない)
+                # 定義地獄
                 NUM_OF_MILESTONES_TO_MONITOR = 4  # 監視するキリ番プロジェクトの数
                 before_max_id = max_id  # 前回更新時の最大ID
                 recent_speed_list = []  # 直近50更新で算出されたプロジェクト作成速度
@@ -140,12 +140,15 @@ async def main():
                 id_diff = 0  # 前回の更新からのIDの増加
                 time_diff = 0  # 前回の更新から経った時間
                 unfound_streak = 0  # 更新がなかった連続数
-                num_of_updates_gonna_be_ignored = 0  # ↑が大きくなっ手から更新された時に、この回数分は last_update や num_of_projects_to_monitor をリセットしない
-                
-                DATE_2000 = datetime(2000, 1, 1, 0, 0, 0)  # 2000年からの秒数に変換する用
+                num_of_updates_gonna_be_ignored = 0  # ↑が大きくなってから更新された時に、この回数分は last_update や num_of_projects_to_monitor をリセットしない
+                id_diff_from_update = 0  # 更新が無くても更新される id_diff
+                before_max_id_when_updated = 0  # 同上
 
+                DATE_2000 = datetime(2000, 1, 1, 0, 0, 0)  # 2000年からの秒数に変換する用
                 MILESTONE_STEP = int(1e7)  # キリ番のステップ
                 SPECIAL_MILESTONES = [1111111111, 1234567890]  # キリが良いわけではない特別なキリ番
+
+                avg = lambda l : sum(l) / len(l)  # リストの平均を出す関数
 
                 # next_milestone を算出
                 next_milestone = int((math.ceil(max_id / MILESTONE_STEP)) * MILESTONE_STEP)
@@ -153,7 +156,7 @@ async def main():
                 if any([max_id < e < next_milestone for e in SPECIAL_MILESTONES]):
                     next_milestone = [e for e in SPECIAL_MILESTONES if max_id < e < next_milestone][0]
 
-                # 文字列を数字の羅列に変換する関数
+                # 文字列を数字の羅列に変換する関数 (クラウド変数に送るため)
                 def convert_username_to_numstr(str):
                     CHAR_LIST = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_"
 
@@ -163,12 +166,12 @@ async def main():
 
                     # 固定長にするために40文字まで末尾を0埋め
                     return f"{result:040}"
-                
+
                 # 日付か日付文字列(ISO 8601)を2000年からの秒数に変換する関数 (Scratchで扱いやすく／クラウド変数に送る ため)
                 def convert_datestr_to_num(date):
                     if type(date) == datetime:
                         return (date - DATE_2000).total_seconds()
-                    
+
                     elif type(date) == str:
                         return (datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ") - DATE_2000).total_seconds()
 
@@ -197,7 +200,7 @@ async def main():
 
                             # 取ってきたデータを before_milestones に追加
                             before_milestones.append({"id": milestone, "shared": shared, "creator": creator, "created_time": created_time})
-                        
+
                         else:
                             # 非共有 → 非共有の場合も、新たに情報の取得はせずに元から載っていた情報を使用する
                             if any([e["id"] == milestone and not e["shared"] for e in before_before_milestones]):  # 非共有 → 非共有
@@ -249,11 +252,11 @@ async def main():
 
                                 elif response.status != 688:
                                     print(f"A task responsed with a status {response.status}.")
-                        
+
                         except Exception as e:
                             return e
-                        
-                    # ここら辺に散らばってるコメントアウトされたコード(##始まり)は、v2.1e のデバッグ用に使用されたものです。
+
+                    # ここら辺に散らばってるコメントアウトされたコード(##始まり)は、v2.4.1 (旧v2.1e) のデバッグ用に使用されたものです。
                     ## last_check = utcnow()
                     ## last_check_num = convert_datestr_to_num(last_check)
 
@@ -284,7 +287,7 @@ async def main():
                             if isinstance(response, Exception):
                                 if err_cnt >= 100:  # 10連続でエラーが発生したなら、応答(エラー)をraise
                                     raise response
-                                
+
                                 print(f"Error while getting data... count: {err_cnt}, err: {response!r}")
                                 await asyncio.sleep(1)
                                 break  # 10連続以下の場合、内側のforを抜けて、外側のforをもう1回やり直す
@@ -295,7 +298,7 @@ async def main():
                     for i, response in zip(range(NUM_OF_MILESTONES_TO_MONITOR), responses[:NUM_OF_MILESTONES_TO_MONITOR]):
                         if before_milestones[i]["shared"]:
                             continue
-                        
+
                         shared = response.status == 200
                         if shared and before_milestones[i]["shared"] == False:
 
@@ -313,7 +316,7 @@ async def main():
                                     milestone_string += f"{before_milestones[j]['id']}1{convert_username_to_numstr(before_milestones[j]["creator"])}{int(before_milestones[j]["created_time"]):010}"
                                 else:
                                     milestone_string += f"{before_milestones[j]['id']}0{0:040}{int(before_milestones[j]["created_time"]) if before_milestones[j]["created_time"] != None else 0:010}"
-                                                        
+
                             await set_var("milestone_data", milestone_string)
                             await set_var("milestone_data", milestone_string)
                             await set_var("milestone_data", milestone_string)
@@ -321,15 +324,19 @@ async def main():
 
                     ## else: time.sleep(0.1)
 
+                    id_diff_from_update = max_id - before_max_id_when_updated
+
                     if max_id != before_max_id:  # 最大IDの更新があったら
                         if num_of_checks >= 2:  # 無限ループ前の推定では最新のものに追いついてない可能性があるので、詳細な計算は2回の更新後に始める
 
                             # n連続で新しいプロジェクトが見つからなかった場合、恐らくScratchサーバー又はこちら側の不調と考える。
                             # 不調の後に新しいプロジェクトが見つかった場合、素直に更新すると、不調の間に実は作成されていたプロジェクトが短時間で大放出されて、
                             #  作成速度がめちゃくちゃ跳ね上がってしまうので、それを防ぐためにそこからm回は何もなかったことにする
-                            # v2.1g にて、(n, m) を (8, 4) から (5, 10) に変更しました (まだ事故っていたため)
+                            # v2.4.3 (旧v2.1g) にて、(n, m) を (8, 4) から (5, 10) に変更しました (まだ事故っていたため)
+
                             if unfound_streak >= 5:
-                                num_of_updates_gonna_be_ignored = 10
+                                if id_diff_from_update > 8:
+                                    num_of_updates_gonna_be_ignored = 10
                             
                             unfound_streak = 0
 
@@ -338,18 +345,17 @@ async def main():
 
                                 print(f"[#{num_of_checks:06}: {last_check}]  ~  #{max_id} |{max_id - before_max_id:3}p /{last_check_num - last_update_num:6.3f}s = {(max_id - before_max_id) / (last_check_num - last_update_num):7.3f} p/s                                                   *{num_of_projects_to_monitor:3}")
 
-
                             else:
                                 id_diff = max_id - before_max_id
                                 last_update = last_check
                                 last_update_num = last_check_num
-                            
+
                                 time_diff = (last_check_num - before_update_num)
                                 create_speed = id_diff / time_diff
 
                                 # 今回の更新で、調べたプロジェクトの中でほぼすべてが存在していた場合、Scratch側の不調からの急な回復が考えられるので、
                                 # 作成速度の不本意な急増を抑えるべく一旦見なかったことにする
-                                #  → v2.1e にてこの機能はなくなりました (新しい更新無視システムが追加されたため)
+                                #  → v2.4.1 (旧v2.1e) にてこの機能はなくなりました (新しい更新無視システムが追加されたため)
                                 # if id_diff >= 0.8 * num_of_projects_to_monitor:
                                 #     print(f"[#{num_of_checks:06}: {last_check}]  ~  #{max_id} |{id_diff:3}p /{(time_diff):6.3f}s =  --.--- p/s                                                   *{num_of_projects_to_monitor:3}")
                                 #
@@ -369,7 +375,6 @@ async def main():
                                     # 50件前の更新時の情報から作成速度を計算
                                     create_speed_for_stats = (max_id - recent_update_list_for_stats[0]["id"]) / (last_update_num - recent_update_list_for_stats[0]["time"])
 
-                                    avg = lambda l : sum(l) / len(l)
                                     create_speed_last50 = avg(recent_speed_list)
                                     create_speed_last10 = avg(recent_speed_list[-10:] if len(recent_speed_list) >= 10 else recent_speed_list)
 
@@ -409,19 +414,21 @@ async def main():
                                     else:
                                         speed_data_string += f"{0:010}"
 
-                                before_max_id = max_id
+                            before_max_id = max_id
 
                         else:
                             before_max_id = max_id
-                    
-                    else:
+
+                    else:  # (最大IDの更新がない)
                         unfound_streak += 1
 
                         if num_of_updates_gonna_be_ignored == 0:
                             print(f"[#{num_of_checks:06}: {last_check}]     #{max_id} |  0p /{(last_check_num - last_update_num):6.3f}s =   0     p/s                                                   *{num_of_projects_to_monitor:3}")
-                        
+
                         else:
                             print(f"[#{num_of_checks:06}: {last_check}]  -  #{max_id} |{max_id - before_max_id:3}p /{last_check_num - last_update_num:6.3f}s = {(max_id - before_max_id) / (last_check_num - last_update_num):7.3f} p/s                                                   *{num_of_projects_to_monitor:3}")
+
+                    before_max_id_when_updated = max_id
 
                     num_of_checks += 1
 
@@ -430,7 +437,7 @@ async def main():
                         # before_milestones の中身を新しいやつで押し出す
                         before_milestones.insert(0, {"id": next_milestone, "shared": False, "creator": None, "created_time": int(last_check_num)})
                         before_milestones.pop()
-                        
+
                         # milestone_dataやstring を更新
                         next_milestone = int((math.ceil((max_id + 1) / MILESTONE_STEP)) * MILESTONE_STEP)
                         if any([max_id < e < next_milestone for e in SPECIAL_MILESTONES]):
@@ -442,7 +449,7 @@ async def main():
                                 milestone_string += f"{before_milestones[j]['id']}1{convert_username_to_numstr(before_milestones[j]["creator"])}{int(before_milestones[j]["created_time"]):010}"
                             else:
                                 milestone_string += f"{before_milestones[j]['id']}0{0:040}{int(before_milestones[j]["created_time"]) if before_milestones[j]["created_time"] != None else 0:010}"
-                            
+
                         # 念入り
                         await set_var("milestone_data", milestone_string)
                         await set_var("milestone_data", milestone_string)
@@ -464,7 +471,7 @@ async def main():
                             with open(path.join(DIR_PATH, "speed_data.csv"), "w", newline="") as file:
                                 writer = csv.writer(file)
                                 writer.writerows(long_term_speed_data)
-                            
+
                             with open(path.join(DIR_PATH, "speed_data_for_copy.txt"), "w") as file:
                                 file.write(speed_data_string)
 
@@ -475,8 +482,8 @@ async def main():
                             await asyncio.sleep(0.3)
                         else:
                             break
-                
-            except Exception: 
+
+            except Exception:
                 print(f"[{datetime.utcnow()}] The following error occurred!\n {traceback.format_exc()}\n")
 
                 with open(path.join(DIR_PATH, "error_dump.log"), "a", encoding='UTF-8') as file:
