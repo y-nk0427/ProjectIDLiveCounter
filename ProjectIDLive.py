@@ -44,7 +44,7 @@ async def main():
                 s3_connection_tw = s3_session.connect_tw_cloud(1064835367, purpose="Project ID Live Counter Bot v2.0 by @y_nk - Using Python & scratchattach library v1.7.3", contact="yoheinz2010@gmail.com")
 
                 async def set_var(name, value):
-                    return
+                    #return
                     err = 0
 
                     for err_cnt in range(15):
@@ -141,6 +141,7 @@ async def main():
                 time_diff = 0  # 前回の更新から経った時間
                 unfound_streak = 0  # 更新がなかった連続数
                 num_of_updates_gonna_be_ignored = 0  # ↑が大きくなってから更新された時に、この回数分は last_update や num_of_projects_to_monitor をリセットしない
+                # 詳しいことは 330行 あたりのコメントを参照すること
                 id_diff_from_update = 0  # 更新が無くても更新される id_diff
                 before_max_id_when_updated = 0  # 同上
 
@@ -329,14 +330,18 @@ async def main():
                     if max_id != before_max_id:  # 最大IDの更新があったら
                         if num_of_checks >= 2:  # 無限ループ前の推定では最新のものに追いついてない可能性があるので、詳細な計算は2回の更新後に始める
 
-                            # n連続で新しいプロジェクトが見つからなかった場合、恐らくScratchサーバー又はこちら側の不調と考える。
+                            # ここら辺の話はこのプログラムを bot-hosting.net でホスティングするときに発生している問題に対処するものであって、
+                            #  他の場所ではこんな問題は起こらないかもしれません
+                            # [v2.4.1 (旧v2.1e)] n連続で新しいプロジェクトが見つからなかった場合、恐らくScratchサーバー又はこちら側の不調と考える。
                             # 不調の後に新しいプロジェクトが見つかった場合、素直に更新すると、不調の間に実は作成されていたプロジェクトが短時間で大放出されて、
                             #  作成速度がめちゃくちゃ跳ね上がってしまうので、それを防ぐためにそこからm回は何もなかったことにする
-                            # v2.4.3 (旧v2.1g) にて、(n, m) を (8, 4) から (5, 10) に変更しました (まだ事故っていたため)
-
-                            if unfound_streak >= 5:
+                            # [v2.4.3 (旧v2.1g)] (n, m) を (8, 4) から (5, 10) に変更しました (まだ事故っていたため)
+                            # [v2.4.4] 不調中にもたまに単発で検出される場合が多かったので、
+                            #  不調中の検出でxプロジェクト以下のものは無視し不調判定を継続することにしました (下のifネスト2つ目)
+                            # これで事故が減ったので、(n, m) を (5, 10) から (8, 6) に戻しました
+                            if unfound_streak >= 8:
                                 if id_diff_from_update > 8:
-                                    num_of_updates_gonna_be_ignored = 10
+                                    num_of_updates_gonna_be_ignored = 6
                             
                             unfound_streak = 0
 
