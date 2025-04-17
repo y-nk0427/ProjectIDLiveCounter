@@ -38,9 +38,9 @@ async def main():
                 with open(path.join(DIR_PATH, "session_id.txt"), "r") as file:
                     s3_session_id = file.read().strip()
 
-                # セッション情報 (Scratchの方のクラウド変数が落ちているのでコメントアウト)
+                # セッション情報
                 s3_session = s3.Session(s3_session_id, username="y_nk")
-                # s3_session.connect_cloud(1064835367)
+                s3_connection = s3_session.connect_cloud(1064835367)
                 s3_connection_tw = s3_session.connect_tw_cloud(1064835367, purpose="Project ID Live Counter Bot v2.0 by @y_nk - Using Python & scratchattach library v1.7.3", contact="yoheinz2010@gmail.com")
 
                 async def set_var(name, value):
@@ -50,7 +50,7 @@ async def main():
                     for err_cnt in range(15):
                         try:
                             s3_connection_tw.set_var(name, value)
-                            # s3_connection.set_var(name, value)
+                            s3_connection.set_var(name, value)
                             await asyncio.sleep(0.1)
                             return
 
