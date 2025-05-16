@@ -72,6 +72,7 @@ async def main():
 
                 max_id = 0  # 現在の最大ID
                 num_of_projects_to_monitor = 300  # 1度のリクエストで取得するID数
+                LEN_OF_DEFAULT_ICON = 2309  # 未作成プロジェクトのサムネイル (初期ユーザーアイコン) のサイズ (Bytes)
 
                 # サーバの再起動時に大まかな現在の最大IDを調べる
                 i = data["max_id"]
@@ -92,7 +93,7 @@ async def main():
                         responses = await asyncio.gather(*tasks)
 
                         for id, response in zip(range(i, i + num_of_projects_to_monitor), responses):
-                            shared = response.status == 200
+                            shared = response.content_length != LEN_OF_DEFAULT_ICON
 
                             # 最大IDの更新
                             if shared and id > max_id:
@@ -246,12 +247,12 @@ async def main():
                                 if max_checked_id < id:
                                     max_checked_id = id
 
-                                if response.status == 200:
+                                if response.content_length != LEN_OF_DEFAULT_ICON:
                                     if max_id < id:
                                         max_id = id
                                         last_update = utcnow()
 
-                                elif response.status != 688:
+                                elif response.status != 200:
                                     print(f"A task responsed with a status {response.status}.")
 
                         except Exception as e:
